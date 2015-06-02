@@ -3,7 +3,6 @@ package compressedhandler
 import (
 	"compress/flate"
 	"compress/gzip"
-	"compress/lzw"
 	"io"
 	"net/http"
 	"strconv"
@@ -14,8 +13,7 @@ import (
 type flateType uint8
 
 const (
-	None flateType = iota
-	Compress
+	Identity flateType = iota
 	Deflate
 	Gzip
 )
@@ -45,6 +43,8 @@ func (c CompressedResponseWriter) Write(b []byte) (int, error) {
 // response body if the client supports it (via the Accept-Encoding header).
 func CompressedHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Accept-Encoding")
+
 		switch accepts(r) {
 		// Bytes written during ServeHTTP are redirected to a specific
 		// writer before being written to the underlying response.
@@ -63,13 +63,6 @@ func CompressedHandler(h http.Handler) http.Handler {
 			w.Header().Set("Content-Encoding", "deflate")
 			h.ServeHTTP(CompressedResponseWriter{flw, w}, r)
 
-		case Compress:
-			lzww := lzw.NewWriter(w, lzw.MSB, 8)
-			defer lzww.Close()
-
-			w.Header().Set("Content-Encoding", "compress")
-			h.ServeHTTP(CompressedResponseWriter{lzww, w}, r)
-
 		default:
 			h.ServeHTTP(w, r)
 		}
@@ -80,19 +73,19 @@ func CompressedHandler(h http.Handler) http.Handler {
 func accepts(r *http.Request) flateType {
 	acceptedEncodings, _ := parseEncodings(r.Header.Get("Accept-Encoding"))
 
-	if acceptedEncodings["gzip"] > 0.0 {
-		return Gzip
+	if acceptedEncodings["identity"] > 0.0 {
+		return Identity
 	}
 
-	if acceptedEncodings["compress"] > 0.0 {
-		return Compress
+	if acceptedEncodings["gzip"] > 0.0 {
+		return Gzip
 	}
 
 	if acceptedEncodings["deflate"] > 0.0 {
 		return Deflate
 	}
 
-	return None
+	return Identity
 }
 
 // parseEncodings attempts to parse a list of codings, per RFC 2616, as might

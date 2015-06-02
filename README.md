@@ -4,7 +4,7 @@ compressedhandler
 compressedhandler is Go middleware that will compress an HTTP response
 before it's sent back to the client. It first checks which compression
 algorithms the client supports, and will compress the content in the
-with the first applicable algorithm in this order: Gzip, Deflate, Compress.
+with the first applicable algorithm in this order: Gzip, Deflate, <future algorithms>.
 
 If the client doesn't support any applicable algorithm, it'll simply send
 uncompressed content.
