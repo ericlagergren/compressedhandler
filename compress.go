@@ -108,7 +108,6 @@ func parseEncodings(s string) (codings, error) {
 
 	for _, ss := range strings.Split(s, ",") {
 		coding, qvalue, err := parseCoding(ss)
-		println(coding)
 
 		if err != nil {
 			e = append(e, KeyError{ss, err})
