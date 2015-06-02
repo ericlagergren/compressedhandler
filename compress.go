@@ -15,8 +15,8 @@ type flateType uint8
 
 const (
 	None flateType = iota
-	Deflate
 	Compress
+	Deflate
 	Gzip
 )
 
@@ -56,19 +56,19 @@ func CompressedHandler(h http.Handler) http.Handler {
 			w.Header().Set("Content-Encoding", "gzip")
 			h.ServeHTTP(CompressedResponseWriter{gzw, w}, r)
 
-		case Compress:
-			lzww := lzw.NewWriter(w, lzw.MSB, 8)
-			defer lzww.Close()
-
-			w.Header().Set("Content-Encoding", "compress")
-			h.ServeHTTP(CompressedResponseWriter{lzww, w}, r)
-
 		case Deflate:
 			flw, _ := flate.NewWriter(w, flate.DefaultCompression)
 			defer flw.Close()
 
 			w.Header().Set("Content-Encoding", "deflate")
 			h.ServeHTTP(CompressedResponseWriter{flw, w}, r)
+
+		case Compress:
+			lzww := lzw.NewWriter(w, lzw.MSB, 8)
+			defer lzww.Close()
+
+			w.Header().Set("Content-Encoding", "compress")
+			h.ServeHTTP(CompressedResponseWriter{lzww, w}, r)
 
 		default:
 			h.ServeHTTP(w, r)
