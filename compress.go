@@ -1,13 +1,18 @@
 package compressedhandler
 
 import (
+	"bufio"
 	"compress/flate"
 	"compress/gzip"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
 )
+
+var ErrUnHijackable = errors.New("the ResponseWriter doesn't support the Hijacker interface")
 
 //go:generate stringer -type=flateType
 type flateType uint8
@@ -34,6 +39,14 @@ type CompressedResponseWriter struct {
 	http.ResponseWriter
 }
 
+func (c CompressedResponseWriter) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
+	hj, ok := c.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, ErrUnHijackable
+	}
+	return hj.Hijack()
+}
+
 // Write appends data to the compressed writer.
 func (c CompressedResponseWriter) Write(b []byte) (int, error) {
 	return c.Writer.Write(b)
@@ -48,7 +61,6 @@ func CompressedHandler(h http.Handler) http.Handler {
 		switch accepts(r) {
 		// Bytes written during ServeHTTP are redirected to a specific
 		// writer before being written to the underlying response.
-
 		case Gzip:
 			gzw := gzip.NewWriter(w)
 			defer gzw.Close()
