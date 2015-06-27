@@ -12,7 +12,10 @@ import (
 	"strings"
 )
 
-var ErrUnHijackable = errors.New("the ResponseWriter doesn't support the Hijacker interface")
+// ErrUnHijackable indicates an unhijackable connection. I.e., (one of)
+// the underlying http.ResponseWriter(s) doesn't support the http.Hijacker
+// interface.
+var ErrUnHijackable = errors.New("A(n) underlying ResponseWriter doesn't support the http.Hijacker interface")
 
 //go:generate stringer -type=flateType
 type flateType uint8
@@ -39,6 +42,8 @@ type CompressedResponseWriter struct {
 	http.ResponseWriter
 }
 
+// Hijack implements the http.Hijacker interface to allow connection
+// hijacking.
 func (c CompressedResponseWriter) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	hj, ok := c.ResponseWriter.(http.Hijacker)
 	if !ok {
