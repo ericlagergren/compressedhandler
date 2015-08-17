@@ -10,6 +10,43 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+)
+
+type tmp struct {
+	w io.Writer
+	e error
+}
+
+// GetGzip requests a gzip.Writer from the pool and resets its
+// reader to w.
+func GetGzip(w io.Writer) (g *gzip.Writer) {
+	g = Gzippers.Get().(*gzip.Writer)
+	g.Reset(w)
+	return
+}
+
+// GetWriter requests a flate.Writer from the pool and resets its
+// reader to w.
+func GetWriter(w io.Writer, level int) (f *flate.Writer, e error) {
+	t := Writers.Get().(*tmp)
+	f = t.w.(*flate.Writer)
+	e = t.e
+	f.Reset(w)
+	return
+}
+
+var (
+	// Gzippers is a sync.Pool of writers.
+	Gzippers = sync.Pool{New: func() interface{} {
+		return gzip.NewWriter(nil)
+	}}
+
+	// Writers is a sync.Pool of writers.
+	Writers = sync.Pool{New: func() interface{} {
+		w, e := flate.NewWriter(nil, flate.DefaultCompression)
+		return &tmp{w: w, e: e}
+	}}
 )
 
 // ErrUnHijackable indicates an unhijackable connection. I.e., (one of)
@@ -21,8 +58,13 @@ var ErrUnHijackable = errors.New("A(n) underlying ResponseWriter doesn't support
 type flateType uint8
 
 const (
+	// Identity means default coding; no transformation.
 	Identity flateType = iota
+
+	// Deflate uses the deflate algorithm inside zlib data format.
 	Deflate
+
+	// Gzip uses the GNU zip format.
 	Gzip
 )
 
@@ -67,19 +109,29 @@ func CompressedHandler(h http.Handler) http.Handler {
 		// Bytes written during ServeHTTP are redirected to a specific
 		// writer before being written to the underlying response.
 		case Gzip:
-			gzw := gzip.NewWriter(w)
-			defer gzw.Close()
+			gzw := GetGzip(w)
+
+			defer func() {
+				Gzippers.Put(gzw)
+				gzw.Close()
+			}()
 
 			w.Header().Set("Content-Encoding", "gzip")
 			h.ServeHTTP(CompressedResponseWriter{gzw, w}, r)
 
 		case Deflate:
-			flw, _ := flate.NewWriter(w, flate.DefaultCompression)
+			flw, err := GetWriter(w, flate.DefaultCompression)
 			defer flw.Close()
+			if err != nil {
+				goto ft
+			}
 
 			w.Header().Set("Content-Encoding", "deflate")
 			h.ServeHTTP(CompressedResponseWriter{flw, w}, r)
+			return
 
+		ft:
+			fallthrough
 		default:
 			h.ServeHTTP(w, r)
 		}
