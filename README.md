@@ -21,7 +21,7 @@ import (
 	"io"
 	"net/http"
 
-	ch "github.com/EricLagerg/compressedhandler"
+	ch "github.com/EricLagergren/compressedhandler"
 )
 
 func main() {
@@ -50,7 +50,7 @@ Thanks to the [New York Times] [nyt] for their Gzip handler. It served as the id
 If *all* you need is to Gzip content, go use theirs instead.
 
 
-[docs]:     https://godoc.org/github.com/EricLagerg/compressedhandler
-[license]:  https://github.com/EricLagerg/compressedhandler/blob/master/license.txt
+[docs]:     https://godoc.org/github.com/EricLagergren/compressedhandler
+[license]:  https://github.com/EricLagergren/compressedhandler/blob/master/license.txt
 [nyt]:      https://github.com/NYTimes/gziphandler
 
